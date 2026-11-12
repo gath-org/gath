@@ -21,6 +21,6 @@
     "@types/three": "^0.187.0",
     "tailwindcss": "^4.1.13",
     "tsx": "^4.23.15",
-    "typescript": "^5.9"
+    "typescript": "^7.0"
   }
 }
