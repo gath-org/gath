@@ -95,15 +95,22 @@ func TestResolveSeedsRejectsBadEntries(t *testing.T) {
 	}
 }
 
-func TestPublishedSeedListsAreAddressesNotPlaceholders(t *testing.T) {
-	// A later edit adds a real host:port or DNS name. This only checks that
-	// whatever is published is well formed, and that an empty list resolves.
-	if _, dnsErrs, err := ResolveSeeds(context.Background(), MainnetBootnodes, nil, 9733, nil); err != nil || len(dnsErrs) != 0 {
-		t.Fatalf("bootnodes %v err %v dns %v", MainnetBootnodes, err, dnsErrs)
+func TestMainnetSeedIsThePublicNode(t *testing.T) {
+	if len(MainnetDNSSeeds) != 0 {
+		t.Fatalf("dns seeds %v", MainnetDNSSeeds)
 	}
-	for _, name := range MainnetDNSSeeds {
-		if err := validateDNSSeed(name); err != nil {
-			t.Fatal(err)
-		}
+	want := "104.207.90.38:9733"
+	if len(MainnetBootnodes) != 1 || MainnetBootnodes[0] != want {
+		t.Fatalf("bootnodes %v", MainnetBootnodes)
+	}
+	peers, dnsErrs, err := ResolveSeeds(context.Background(), MainnetBootnodes, MainnetDNSSeeds, 9733, func(context.Context, string) ([]net.IP, error) {
+		t.Fatal("lookup called with no dns seeds")
+		return nil, nil
+	})
+	if err != nil || len(dnsErrs) != 0 {
+		t.Fatalf("err %v dns %v", err, dnsErrs)
+	}
+	if len(peers) != 1 || peers[0] != want {
+		t.Fatalf("peers %v", peers)
 	}
 }

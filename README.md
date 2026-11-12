@@ -5,7 +5,7 @@
 
 Gath is a proof-of-work currency. This repository is the full node, the CPU miner, and the command-line wallet. The chain moves one asset, Gath. There is no issuer and no admin key.
 
-The mainnet parameters are in the binary. No public network is running on them.
+The mainnet parameters are in the binary. A public seed is reachable at `104.207.90.38:9733`. It started at genesis and may have few or no peers. There is no DNS name for it yet.
 
 The website is at https://gath-org.github.io/gath/.
 
@@ -27,25 +27,29 @@ go install github.com/gath-org/gath/cmd/gath@latest
 
 ## Node
 
-No public network is running. These commands start a node on this machine. A mainnet node can take peers from the internet once someone is there to connect to. It does not join a live public chain by itself.
+These commands start a node on this machine. A mainnet node listens for peers from the internet and dials the public seed.
 
 ### Mainnet
 
+After this change is merged, a node joins that seed with `gath node --network mainnet`. `--datadir` is required:
+
 ```bash
 bin/gath node --network mainnet --datadir ./mainnet-data
+```
+
+The seed is `104.207.90.38:9733`, listed in `MainnetBootnodes` in `internal/p2p/seeds.go`. `MainnetDNSSeeds` is empty. The seed started at genesis. It may have few or no peers.
+
+Today, before this change is in the binary you run, that command does not dial the seed. `--connect` still reaches it:
+
+```bash
+bin/gath node --network mainnet --datadir ./mainnet-data --connect 104.207.90.38:9733
 ```
 
 Peers listen on all interfaces, port 9733. `--listen` defaults to `0.0.0.0:9733`. Override that with `--listen`. Allow TCP 9733 through the host firewall, and forward that port if the machine is behind NAT. Set `--external <public-host>:9733` to an address other people can dial. The node then tells peers that address. Without `--external` it still accepts inbound connections, and it does not advertise `0.0.0.0` or `::`.
 
 The JSON API listens on `127.0.0.1:9734`. It has no authentication, so it must stay on localhost. A caller who can reach it can read the chain, submit transactions, and ask this process to mine. Do not forward 9734, and do not set `--rpc` to a public address.
 
-There is no public seed yet. Until one is published, dial a node you already know. `--connect` is repeatable, and it works while the seed list is empty:
-
-```bash
-bin/gath node --network mainnet --datadir ./mainnet-data --connect <host>:9733
-```
-
-The first public seed will be one new line in `internal/p2p/seeds.go`: a `host:port` in `MainnetBootnodes`, or a DNS name in `MainnetDNSSeeds`. After that, a mainnet node dials the seed on startup. The address will be written here when that first node is up.
+`--connect` is repeatable. It still adds a peer you already know, including the seed above.
 
 ### Devnet
 
