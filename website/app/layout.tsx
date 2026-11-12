@@ -19,7 +19,7 @@ const mono = localFont({
 export const metadata: Metadata = {
   title: "Gath — a standalone proof-of-work currency",
   description:
-    "Gath is open-source software for a standalone proof-of-work currency. No issuer, no admin key, no premine. In development; not a public network yet.",
+    "Gath is open-source software for a standalone proof-of-work currency. No issuer, no admin key, no premine. An early public mainnet seed is reachable. It started at genesis and may have few or no peers.",
 };
 
 export const viewport: Viewport = {

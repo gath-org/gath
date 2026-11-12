@@ -31,25 +31,23 @@ These commands start a node on this machine. A mainnet node listens for peers fr
 
 ### Mainnet
 
-After this change is merged, a node joins that seed with `gath node --network mainnet`. `--datadir` is required:
+A mainnet node dials the public seed on startup. `--datadir` is required:
 
 ```bash
 bin/gath node --network mainnet --datadir ./mainnet-data
 ```
 
-The seed is `104.207.90.38:9733`, listed in `MainnetBootnodes` in `internal/p2p/seeds.go`. `MainnetDNSSeeds` is empty. The seed started at genesis. It may have few or no peers.
-
-Today, before this change is in the binary you run, that command does not dial the seed. `--connect` still reaches it:
-
-```bash
-bin/gath node --network mainnet --datadir ./mainnet-data --connect 104.207.90.38:9733
-```
+The seed is `104.207.90.38:9733`, listed in `MainnetBootnodes` in `internal/p2p/seeds.go`. `MainnetDNSSeeds` is empty. The seed started at genesis. It may have few or no peers. There is no DNS name for it yet.
 
 Peers listen on all interfaces, port 9733. `--listen` defaults to `0.0.0.0:9733`. Override that with `--listen`. Allow TCP 9733 through the host firewall, and forward that port if the machine is behind NAT. Set `--external <public-host>:9733` to an address other people can dial. The node then tells peers that address. Without `--external` it still accepts inbound connections, and it does not advertise `0.0.0.0` or `::`.
 
 The JSON API listens on `127.0.0.1:9734`. It has no authentication, so it must stay on localhost. A caller who can reach it can read the chain, submit transactions, and ask this process to mine. Do not forward 9734, and do not set `--rpc` to a public address.
 
-`--connect` is repeatable. It still adds a peer you already know, including the seed above.
+`--connect` is repeatable. It adds a known peer, including the seed:
+
+```bash
+bin/gath node --network mainnet --datadir ./mainnet-data --connect 104.207.90.38:9733
+```
 
 ### Devnet
 

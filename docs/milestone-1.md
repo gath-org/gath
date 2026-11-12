@@ -54,7 +54,7 @@ Relative ASERT still allows a bounded fast-mine. A block every second tightens t
 - The wallet uses a single address index.
 - Address history is a walk of the active chain, not an index. That is fine for devnet and short chains.
 - Secret wiping is best-effort. ML-DSA key material inside the library is not guaranteed to be erased.
-- This is not a launched public network. The integer cap is 20,999,999.727 Gath, not a round 21 million.
+- An early public mainnet seed is reachable. It started at genesis and may have few or no peers. The integer cap is 20,999,999.727 Gath, not a round 21 million.
 
 ## Next
 

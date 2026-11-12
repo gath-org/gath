@@ -101,11 +101,10 @@ export default function Gath() {
         </h1>
         <p className="final-ui d1 tagline m-0">A standalone proof-of-work currency. No issuer, no admin key, no premine.</p>
         <div className="final-row">
-          {/* Repo link is a placeholder until the repository is published. */}
           <a href={REPO_URL} className="final-ui d2 repo">
             {REPO_LABEL} <span aria-hidden="true">↗</span>
           </a>
-          <p className="final-ui d3 status m-0">Open-source software in development. Not a public network yet. MIT License.</p>
+          <p className="final-ui d3 status m-0">Open-source software. An early public mainnet seed is reachable. It started at genesis and may have few or no peers. MIT License.</p>
         </div>
       </div>
 

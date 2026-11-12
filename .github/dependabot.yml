@@ -1,0 +1,16 @@
+version: 2
+updates:
+  # Go module at the repository root.
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  # website/ is a pnpm project. Dependabot reads pnpm-lock.yaml
+  # through the npm ecosystem.
+  - package-ecosystem: npm
+    directory: /website
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
