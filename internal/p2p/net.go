@@ -59,6 +59,7 @@ type Network struct {
 type peer struct {
 	nonce    uint64
 	addr     string
+	dialed   string
 	outbound bool
 	conn     net.Conn
 	out      chan []byte
@@ -94,14 +95,63 @@ func Start(parent context.Context, cfg Config, h Handler, log *slog.Logger) (*Ne
 		peers:    make(map[uint64]*peer),
 		byAddr:   make(map[string]*peer),
 		known:    make(map[string]struct{}),
-		selfAddr: cfg.External,
-	}
-	if n.selfAddr == "" {
-		n.selfAddr = ln.Addr().String()
+		selfAddr: advertisedAddr(cfg.External, ln.Addr().String()),
 	}
 	go n.accept()
 	go n.maintain()
 	return n, nil
+}
+
+// advertisedAddr is the address we tell peers to dial. An explicit external
+// address is used as given. A loopback listen address is advertised so local
+// peers can reconnect. An unspecified bind (0.0.0.0 or ::) is not advertised:
+// it is not a destination other nodes can dial.
+func advertisedAddr(external, bound string) string {
+	if external != "" {
+		return external
+	}
+	host, _, err := net.SplitHostPort(bound)
+	if err != nil || host == "" {
+		return ""
+	}
+	if ip := net.ParseIP(host); ip != nil && ip.IsUnspecified() {
+		return ""
+	}
+	return bound
+}
+
+const maxKnownAddrs = 1024
+
+// routableAddr is an address we are willing to dial because another peer
+// told us about it. Pinned peers and --connect are not filtered here.
+// Hostnames are rejected: a peer could point them at an internal name.
+func routableAddr(addr string) bool {
+	if err := validatePeerAddr(addr); err != nil {
+		return false
+	}
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return false
+	}
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return false
+	}
+	return ip.IsGlobalUnicast() && !ip.IsPrivate()
+}
+
+// addKnownLocked records a discovery address. Caller holds n.mu.
+func (n *Network) addKnownLocked(addr string) {
+	if addr == "" || addr == n.selfAddr {
+		return
+	}
+	if _, ok := n.known[addr]; ok {
+		return
+	}
+	if len(n.known) >= maxKnownAddrs {
+		return
+	}
+	n.known[addr] = struct{}{}
 }
 
 // Addr is the address the listener is bound to.
@@ -284,7 +334,7 @@ func (n *Network) dialKnown() {
 	}
 	var todo []string
 	for addr := range n.known {
-		if _, ok := n.byAddr[addr]; ok || addr == n.selfAddr {
+		if _, ok := n.byAddr[addr]; ok || addr == n.selfAddr || !routableAddr(addr) {
 			continue
 		}
 		todo = append(todo, addr)
@@ -359,8 +409,13 @@ func (n *Network) handshake(conn net.Conn, addr string, outbound bool) error {
 		net:      n,
 		done:     make(chan struct{}),
 	}
-	if remote.Listen != "" {
-		p.addr = remote.Listen
+	var listenAddr string
+	if remote.Listen != "" && validatePeerAddr(remote.Listen) == nil {
+		listenAddr = remote.Listen
+		p.addr = listenAddr
+	}
+	if outbound {
+		p.dialed = addr
 	}
 	n.mu.Lock()
 	if _, exists := n.peers[p.nonce]; exists {
@@ -368,9 +423,18 @@ func (n *Network) handshake(conn net.Conn, addr string, outbound bool) error {
 		return errors.New("duplicate peer")
 	}
 	n.peers[p.nonce] = p
-	if p.addr != "" {
-		n.byAddr[p.addr] = p
-		n.known[p.addr] = struct{}{}
+	// byAddr stops a redial of an address we already have. known is only
+	// addresses other nodes can dial: a public IP and port, not an inbound
+	// source port, loopback, or a private network.
+	if listenAddr != "" && routableAddr(listenAddr) {
+		n.byAddr[listenAddr] = p
+		n.addKnownLocked(listenAddr)
+	}
+	if p.dialed != "" {
+		n.byAddr[p.dialed] = p
+		if routableAddr(p.dialed) {
+			n.addKnownLocked(p.dialed)
+		}
 	}
 	n.mu.Unlock()
 	n.log.Info("peer connected", "addr", p.addr, "height", p.height, "outbound", outbound)
@@ -474,12 +538,19 @@ func (p *peer) on(cmd string, payload []byte) error {
 		if err != nil {
 			return err
 		}
-		p.net.handler.NoteAddrs(addrs)
+		var keep []string
 		p.net.mu.Lock()
 		for _, a := range addrs {
-			p.net.known[a] = struct{}{}
+			if !routableAddr(a) {
+				continue
+			}
+			keep = append(keep, a)
+			p.net.addKnownLocked(a)
 		}
 		p.net.mu.Unlock()
+		if len(keep) > 0 {
+			p.net.handler.NoteAddrs(keep)
+		}
 		return nil
 	case cmdGetBlocks:
 		loc, stop, err := decodeGetBlocks(payload)
@@ -591,8 +662,10 @@ func (p *peer) sendGetBlocks() {
 func (p *peer) close() {
 	p.net.mu.Lock()
 	delete(p.net.peers, p.nonce)
-	if cur, ok := p.net.byAddr[p.addr]; ok && cur == p {
-		delete(p.net.byAddr, p.addr)
+	for addr, cur := range p.net.byAddr {
+		if cur == p {
+			delete(p.net.byAddr, addr)
+		}
 	}
 	p.net.mu.Unlock()
 	select {

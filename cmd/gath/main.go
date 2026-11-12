@@ -55,13 +55,14 @@ func usage() {
 	fmt.Fprintf(os.Stderr, `Gath is a standalone proof-of-work currency.
 
 Usage:
+  gath node --network mainnet --datadir ./data
   gath node --network devnet --datadir ./data
-  gath miner --rpc http://127.0.0.1:19734 --address <addr> --blocks 1
-  gath wallet create --network devnet --file wallet.json
+  gath miner --rpc http://127.0.0.1:9734 --address <addr> --blocks 1
+  gath wallet create --network mainnet --file wallet.json
   gath wallet restore --network devnet --file wallet.json --phrase "<words>"
   gath wallet address --file wallet.json
-  gath wallet balance --file wallet.json --rpc http://127.0.0.1:19734
-  gath wallet send --file wallet.json --rpc http://127.0.0.1:19734 --to <addr> --amount 1
+  gath wallet balance --file wallet.json --rpc http://127.0.0.1:9734
+  gath wallet send --file wallet.json --rpc http://127.0.0.1:9734 --to <addr> --amount 1
   gath version
 
 The wallet file passphrase is --passphrase, or GATH_WALLET_PASSPHRASE, or a prompt.
@@ -83,9 +84,9 @@ func cmdNode(args []string) error {
 	fs.SetOutput(os.Stderr)
 	network := fs.String("network", "mainnet", "mainnet or devnet")
 	datadir := fs.String("datadir", "", "directory for the chain database")
-	listen := fs.String("listen", "", "peer listen address (default 127.0.0.1 and the network port)")
-	rpc := fs.String("rpc", "", "JSON API listen address (default 127.0.0.1 and the network port)")
-	external := fs.String("external", "", "address to advertise to peers")
+	listen := fs.String("listen", "", "peer listen address (default 0.0.0.0:9733 on mainnet, 127.0.0.1:19733 on devnet)")
+	rpc := fs.String("rpc", "", "JSON API listen address (default 127.0.0.1 and the network API port)")
+	external := fs.String("external", "", "public host:port to advertise to peers")
 	mine := fs.Bool("mine", false, "mine on this node")
 	mineTo := fs.String("mine-to", "", "address that receives this node's coinbase")
 	threads := fs.Int("threads", runtime.NumCPU(), "miner threads, used with --mine")
@@ -97,24 +98,7 @@ func cmdNode(args []string) error {
 	if *datadir == "" {
 		return fmt.Errorf("--datadir is required")
 	}
-	params := consensus.ByNetwork(mustNet(*network))
-	if *listen == "" {
-		*listen = fmt.Sprintf("127.0.0.1:%d", params.P2PPort)
-	}
-	if *rpc == "" {
-		*rpc = fmt.Sprintf("127.0.0.1:%d", params.RPCPort)
-	}
-	n, err := node.Start(context.Background(), node.Config{
-		Network:  *network,
-		DataDir:  *datadir,
-		Listen:   *listen,
-		RPC:      *rpc,
-		External: *external,
-		Connect:  connect,
-		Mine:     *mine,
-		MineTo:   *mineTo,
-		Threads:  *threads,
-	}, nil)
+	n, err := node.Start(context.Background(), nodeConfig(*network, *datadir, *listen, *rpc, *external, connect, *mine, *mineTo, *threads), nil)
 	if err != nil {
 		return err
 	}
@@ -123,6 +107,26 @@ func cmdNode(args []string) error {
 	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
 	<-sig
 	return nil
+}
+
+// seedsFor is the published seed list for a network. Tests replace it.
+var seedsFor = node.SeedsFor
+
+func nodeConfig(network, datadir, listen, rpc, external string, connect []string, mine bool, mineTo string, threads int) node.Config {
+	boot, dns := seedsFor(mustNet(network))
+	return node.Config{
+		Network:  network,
+		DataDir:  datadir,
+		Listen:   listen,
+		RPC:      rpc,
+		External: external,
+		Connect:  connect,
+		Seeds:    boot,
+		DNSSeeds: dns,
+		Mine:     mine,
+		MineTo:   mineTo,
+		Threads:  threads,
+	}
 }
 
 func mustNet(name string) consensus.Network {
