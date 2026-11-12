@@ -1,0 +1,3 @@
+Inter (variable) — SIL Open Font License 1.1 — https://github.com/rsms/inter
+IBM Plex Mono Light — SIL Open Font License 1.1 — https://github.com/IBM/plex
+Both files are subsets of the original fonts, converted to WOFF2.
