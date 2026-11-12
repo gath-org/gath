@@ -5,41 +5,41 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"runtime"
-	"strconv"
 	"strings"
 	"syscall"
 
 	"golang.org/x/term"
 
-	"github.com/gath-org/gath/internal/address"
 	"github.com/gath-org/gath/internal/amount"
 	"github.com/gath-org/gath/internal/client"
 	"github.com/gath-org/gath/internal/consensus"
 	"github.com/gath-org/gath/internal/miner"
 	"github.com/gath-org/gath/internal/node"
+	"github.com/gath-org/gath/internal/spend"
+	"github.com/gath-org/gath/internal/tui"
 	"github.com/gath-org/gath/internal/version"
 	"github.com/gath-org/gath/internal/wallet"
 )
 
 func main() {
-	if len(os.Args) < 2 {
-		usage()
-		os.Exit(2)
-	}
+	cmd, args := parseArgs(os.Args[1:])
 	var err error
-	switch os.Args[1] {
+	switch cmd {
+	case "tui":
+		err = cmdTUI(args)
 	case "node":
-		err = cmdNode(os.Args[2:])
+		err = cmdNode(args)
 	case "miner":
-		err = cmdMiner(os.Args[2:])
+		err = cmdMiner(args)
 	case "wallet":
-		err = cmdWallet(os.Args[2:])
+		err = cmdWallet(args)
 	case "version":
 		fmt.Printf("gath %s protocol %d\n", version.Software, version.Protocol)
-	case "-h", "--help", "help":
+	case "help":
 		usage()
 	default:
 		usage()
@@ -51,10 +51,49 @@ func main() {
 	}
 }
 
+// parseArgs maps the CLI onto a command. No arguments opens the terminal on mainnet.
+func parseArgs(args []string) (string, []string) {
+	if len(args) == 0 {
+		return "tui", nil
+	}
+	switch args[0] {
+	case "tui", "node", "miner", "wallet", "version":
+		return args[0], args[1:]
+	case "help", "-h", "--help":
+		return "help", args[1:]
+	default:
+		return "", args
+	}
+}
+
+func cmdTUI(args []string) error {
+	network, err := tuiNetwork(args, os.Stderr)
+	if err != nil {
+		return err
+	}
+	return tui.Run(context.Background(), network)
+}
+
+func tuiNetwork(args []string, out io.Writer) (string, error) {
+	fs := flag.NewFlagSet("tui", flag.ContinueOnError)
+	fs.SetOutput(out)
+	network := fs.String("network", tui.DefaultNetwork, "mainnet or devnet")
+	if err := fs.Parse(args); err != nil {
+		return "", err
+	}
+	if err := tui.ValidateNetwork(*network); err != nil {
+		return "", err
+	}
+	return *network, nil
+}
+
 func usage() {
 	fmt.Fprintf(os.Stderr, `Gath is a standalone proof-of-work currency.
 
 Usage:
+  gath
+        Open the terminal on mainnet. Dashboard, wallet, and miner are inside it.
+  gath tui [--network mainnet|devnet]
   gath node --network mainnet --datadir ./data
   gath node --network devnet --datadir ./data
   gath miner --rpc http://127.0.0.1:9734 --address <addr> --blocks 1
@@ -65,6 +104,7 @@ Usage:
   gath wallet send --file wallet.json --rpc http://127.0.0.1:9734 --to <addr> --amount 1
   gath version
 
+The network screen switches between mainnet and devnet. The terminal starts on mainnet.
 The wallet file passphrase is --passphrase, or GATH_WALLET_PASSPHRASE, or a prompt.
 The recovery phrase alone restores the wallet. The file passphrase does not.
 `)
@@ -328,74 +368,22 @@ func walletSend(args []string) error {
 	if *rpc == "" || *to == "" || *amt == "" {
 		return fmt.Errorf("--rpc, --to, and --amount are required")
 	}
-	atoms, err := amount.Parse(*amt)
-	if err != nil {
-		return err
-	}
 	w, err := loadWallet(*file, *pass)
 	if err != nil {
 		return err
 	}
-	c := client.New(*rpc)
 	ctx := context.Background()
-	st, err := c.Status(ctx)
+	txid, err := spend.Send(ctx, w, client.New(*rpc), *to, *amt)
 	if err != nil {
 		return err
 	}
-	if st.Network != w.Network() {
-		return fmt.Errorf("wallet is %s and the node is %s", w.Network(), st.Network)
-	}
-	params := consensus.ByNetwork(mustNet(w.Network()))
-	hrp, payTo, err := address.Decode(*to)
-	if err != nil {
-		return err
-	}
-	if hrp != params.HRP {
-		return fmt.Errorf("destination address is for %q", hrp)
-	}
-	from, err := w.Address()
-	if err != nil {
-		return err
-	}
-	info, err := c.Address(ctx, from)
-	if err != nil {
-		return err
-	}
-	rate, err := c.FeeRate(ctx)
-	if err != nil {
-		return err
-	}
-	var coins []wallet.Coin
-	for _, u := range info.UTXOs {
-		if !u.Mature || u.Reserved {
-			continue
-		}
-		value, err := parseAtoms(u.Atoms)
-		if err != nil {
-			return err
-		}
-		id, err := consensus.ParseHash(u.TxID)
-		if err != nil {
-			return err
-		}
-		coins = append(coins, wallet.Coin{
-			Outpoint: consensus.Outpoint{Hash: id, Index: u.Index},
-			Value:    value,
-			Height:   u.Height,
-			Coinbase: u.Coinbase,
-		})
-	}
-	tx, err := w.BuildPayment(payTo, atoms, rate, st.Height, coins)
-	if err != nil {
-		return err
-	}
-	txid, err := c.SubmitTx(ctx, tx)
-	if err != nil {
-		return err
+	shown := *amt
+	if atoms, parseErr := amount.Parse(*amt); parseErr == nil {
+		shown = amount.Format(atoms)
 	}
 	return printWallet(*asJSON, map[string]string{
 		"txid":   txid,
-		"amount": amount.Format(atoms),
+		"amount": shown,
 		"to":     *to,
 	}, fmt.Sprintf("txid %s\n", txid))
 }
@@ -426,18 +414,10 @@ func passphrase(flagValue string) (string, error) {
 		}
 		pass = string(raw)
 	}
-	if len(pass) < 8 {
-		return "", fmt.Errorf("passphrase must be at least 8 characters")
+	if err := wallet.ValidatePassphrase(pass); err != nil {
+		return "", err
 	}
 	return pass, nil
-}
-
-func parseAtoms(s string) (uint64, error) {
-	n, err := strconv.ParseUint(s, 10, 64)
-	if err != nil {
-		return 0, fmt.Errorf("atoms: %w", err)
-	}
-	return n, nil
 }
 
 func printWallet(asJSON bool, v any, text string) error {

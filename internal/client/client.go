@@ -63,6 +63,28 @@ type Address struct {
 	UTXOs          []UTXO `json:"utxos"`
 }
 
+// Peer is one completed handshake from /v1/peers.
+type Peer struct {
+	Addr     string `json:"addr"`
+	Agent    string `json:"agent"`
+	Height   uint64 `json:"height"`
+	Outbound bool   `json:"outbound"`
+}
+
+// Peers fetches the node's current peers.
+func (c *Client) Peers(ctx context.Context) ([]Peer, error) {
+	var out struct {
+		Peers []Peer `json:"peers"`
+	}
+	if err := c.get(ctx, "/v1/peers", &out); err != nil {
+		return nil, err
+	}
+	if out.Peers == nil {
+		return []Peer{}, nil
+	}
+	return out.Peers, nil
+}
+
 // Status fetches /v1/status.
 func (c *Client) Status(ctx context.Context) (Status, error) {
 	var out Status
