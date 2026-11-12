@@ -1,0 +1,8 @@
+/bin/
+/data/
+/devnet-data/
+/wallet-data/
+/uploads/
+*.db
+*.log
+wallet.json
