@@ -1,10 +1,24 @@
-<img alt="Gath" src="docs/banner.png" width="840">
+<p align="center">
+  <picture>
+    <source media="(prefers-reduced-motion: reduce)" srcset="docs/banner.png">
+    <source srcset="docs/banner.webp" type="image/webp">
+    <img alt="Gath" src="docs/banner.png" width="840">
+  </picture>
+</p>
+
+<p align="center">
+  <img alt="SHA3-256 proof of work, a target block time of about 45 seconds, a supply cap of 20,999,999.727 Gath, and ML-DSA-44 signatures" src="docs/facts.svg" width="840">
+</p>
 
 Gath is a proof-of-work currency. This repository is the full node, the CPU miner, and the command-line wallet. The chain moves one asset, Gath. There is no issuer and no admin key.
 
 The mainnet parameters are in the binary. A public seed is reachable at `104.207.90.38:9733`. It started at genesis and may have few or no peers. There is no DNS name for it yet.
 
 The website is at https://gath-org.github.io/gath/.
+
+<p align="center">
+  <img alt="" src="docs/rule.svg" width="840">
+</p>
 
 ## Install
 
