@@ -38,14 +38,14 @@ A consensus bug can fork the people who run this code. A launch with almost no h
 | Block | Version 1. Lock time 0. Sequence `0xffffffff`. Coinbase script starts with the block height as a little-endian uint32. Median time uses 11 ancestors. A timestamp may be at most two hours ahead of the node's clock. |
 | Maturity | A coinbase can be spent at height `created + 100` or later. |
 | Size | Blocks up to 4,000,000 bytes. A simple payment is about 4 KB, so a full block is on the order of a thousand payments. |
-| Network | Magic `GATH` / `GATD`. Peers exchange version, addresses, inventories, blocks, and transactions. The API is localhost JSON. Generating blocks is mining, not an admin mint, and one request is capped at 500 blocks. |
+| Network | Magic `GATH` / `GATD`. Peers exchange version, addresses, inventories, blocks, and transactions. Mainnet listens for peers on all IPv4 interfaces. The API is localhost JSON and has no authentication. Generating blocks is mining, not an admin mint, and one request is capped at 500 blocks. |
 
 Relative ASERT still allows a bounded fast-mine. A block every second tightens the target by about 0.24% (2^((1−45)/12960)). Median time and the two-hour future limit stop a miner from stamping arbitrary timestamps. That is a head start, not an open mint.
 
 ## Known gaps
 
 - No security audit.
-- No DNS seeds. Peers come from `--connect` and address gossip.
+- The bootnode and DNS seed lists exist and are empty. No public seed is published, so until one is added peers come from `--connect` and address gossip.
 - No headers-first initial download and no transaction orphan pool.
 - No replace-by-fee. The mempool is first-seen, capped, and not written to disk.
 - A deep side chain is validated before it is stored. Proof of work makes that expensive on mainnet. It is cheap on devnet.

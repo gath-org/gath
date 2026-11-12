@@ -27,17 +27,36 @@ go install github.com/gath-org/gath/cmd/gath@latest
 
 ## Node
 
+No public network is running. These commands start a node on this machine. A mainnet node can take peers from the internet once someone is there to connect to. It does not join a live public chain by itself.
+
+### Mainnet
+
 ```bash
-bin/gath node --network devnet --datadir ./data
+bin/gath node --network mainnet --datadir ./mainnet-data
 ```
 
-Devnet listens on `127.0.0.1:19733` for peers and `127.0.0.1:19734` for the JSON API. Mainnet uses `9733` and `9734`. The API binds to localhost and has no authentication.
+Peers listen on all interfaces, port 9733. `--listen` defaults to `0.0.0.0:9733`. Override that with `--listen`. Allow TCP 9733 through the host firewall, and forward that port if the machine is behind NAT. Set `--external <public-host>:9733` to an address other people can dial. The node then tells peers that address. Without `--external` it still accepts inbound connections, and it does not advertise `0.0.0.0` or `::`.
+
+The JSON API listens on `127.0.0.1:9734`. It has no authentication, so it must stay on localhost. A caller who can reach it can read the chain, submit transactions, and ask this process to mine. Do not forward 9734, and do not set `--rpc` to a public address.
+
+There is no public seed yet. Until one is published, dial a node you already know. `--connect` is repeatable, and it works while the seed list is empty:
 
 ```bash
+bin/gath node --network mainnet --datadir ./mainnet-data --connect <host>:9733
+```
+
+The first public seed will be one new line in `internal/p2p/seeds.go`: a `host:port` in `MainnetBootnodes`, or a DNS name in `MainnetDNSSeeds`. After that, a mainnet node dials the seed on startup. The address will be written here when that first node is up.
+
+### Devnet
+
+Devnet stays on this machine. It listens on `127.0.0.1:19733` for peers and `127.0.0.1:19734` for the API. It does not dial mainnet seeds.
+
+```bash
+bin/gath node --network devnet --datadir ./data
 bin/gath node --network devnet --datadir ./data --connect 127.0.0.1:19743
 ```
 
-`--mine --mine-to <address>` mines in this process and pays the block reward to that address.
+`--mine --mine-to <address>` mines in this process and pays the block reward to that address. Use a `gath` address on mainnet and a `gathd` address on devnet.
 
 ## Miner
 
@@ -53,12 +72,21 @@ The default RPC is `http://127.0.0.1:9734`. `--blocks` accepts 1 through 500.
 
 The recovery phrase is a BIP39 mnemonic. The words alone restore the wallet. The passphrase only encrypts the wallet file on this machine. It must be at least 8 characters. Pass it with `--passphrase` or `GATH_WALLET_PASSPHRASE`, or type it at the prompt.
 
+Mainnet addresses start with `gath`. Devnet addresses start with `gathd`. The wallet default is mainnet.
+
 ```bash
 export GATH_WALLET_PASSPHRASE='choose-a-passphrase'
-bin/gath wallet create --network devnet --file wallet.json
+bin/gath wallet create --network mainnet --file wallet.json
 bin/gath wallet address --file wallet.json
-bin/gath wallet balance --file wallet.json --rpc http://127.0.0.1:19734
-bin/gath wallet send --file wallet.json --rpc http://127.0.0.1:19734 --to <address> --amount 1
+bin/gath wallet balance --file wallet.json --rpc http://127.0.0.1:9734
+bin/gath wallet send --file wallet.json --rpc http://127.0.0.1:9734 --to <gath-address> --amount 1
+```
+
+A devnet wallet only talks to a devnet node:
+
+```bash
+bin/gath wallet create --network devnet --file wallet-dev.json
+bin/gath wallet balance --file wallet-dev.json --rpc http://127.0.0.1:19734
 ```
 
 `send` returns when the node has accepted the transaction into its mempool. Amounts are decimal Gath: `1` is one Gath, `0.00000001` is one atom. A block reward can be spent after 100 blocks.

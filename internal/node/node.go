@@ -36,6 +36,12 @@ type Config struct {
 	RPC      string
 	External string
 	Connect  []string
+	// Seeds are bootnode addresses (host:port) dialed with Connect.
+	// DNSSeeds are names resolved to that same peer port.
+	// Lookup overrides DNS resolution. Nil uses the system resolver.
+	Seeds    []string
+	DNSSeeds []string
+	Lookup   p2p.LookupIP
 	Mine     bool
 	MineTo   string
 	Threads  int
@@ -81,6 +87,22 @@ func Start(parent context.Context, cfg Config, log *slog.Logger) (*Node, error) 
 	if cfg.DataDir == "" {
 		return nil, errors.New("data directory is required")
 	}
+	if cfg.Listen == "" {
+		cfg.Listen = DefaultP2PListen(netw)
+	}
+	if cfg.RPC == "" {
+		cfg.RPC = DefaultRPCListen(netw)
+	}
+	peers, dnsErrs, err := p2p.ResolveSeeds(parent, cfg.Seeds, cfg.DNSSeeds, params.P2PPort, cfg.Lookup)
+	if err != nil {
+		return nil, err
+	}
+	for _, derr := range dnsErrs {
+		log.Warn("dns seed", "err", derr)
+	}
+	if len(peers) > 0 {
+		log.Info("dialing seeds", "peers", peers)
+	}
 	if err := os.MkdirAll(cfg.DataDir, 0o700); err != nil {
 		return nil, err
 	}
@@ -120,15 +142,11 @@ func Start(parent context.Context, cfg Config, log *slog.Logger) (*Node, error) 
 		}
 		n.mineTo = pkh
 	}
-	listen := cfg.Listen
-	if listen == "" {
-		listen = fmt.Sprintf("127.0.0.1:%d", params.P2PPort)
-	}
 	pn, err := p2p.Start(ctx, p2p.Config{
 		Magic:    params.Magic,
-		Listen:   listen,
+		Listen:   cfg.Listen,
 		External: cfg.External,
-		Pinned:   cfg.Connect,
+		Pinned:   mergePeers(cfg.Connect, peers),
 	}, n, log)
 	if err != nil {
 		n.closePartial()
@@ -155,11 +173,14 @@ func Start(parent context.Context, cfg Config, log *slog.Logger) (*Node, error) 
 				n.log.Error("rpc", "err", err)
 			}
 		}()
+		if !localAPI(n.cfg.RPC) {
+			n.log.Warn("JSON API has no authentication; bind it to localhost", "rpc", n.cfg.RPC)
+		}
 	}
 	if cfg.Mine {
 		go n.mineLoop()
 	}
-	n.log.Info("node started", "network", params.Name, "height", n.ChainHeight(), "p2p", pn.Addr(), "rpc", cfg.RPC)
+	n.log.Info("node started", "network", params.Name, "height", n.ChainHeight(), "p2p", pn.Addr(), "rpc", n.cfg.RPC)
 	return n, nil
 }
 
