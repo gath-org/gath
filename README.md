@@ -1,7 +1,4 @@
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/wordmark-dark.svg">
-  <img alt="Gath" src="docs/wordmark-light.svg" width="206">
-</picture>
+<img alt="Gath" src="docs/banner.png" width="840">
 
 Gath is a proof-of-work currency. This repository is the full node, the CPU miner, and the command-line wallet. The chain moves one asset, Gath. There is no issuer and no admin key.
 
