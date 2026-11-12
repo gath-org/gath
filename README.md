@@ -22,7 +22,15 @@ The website is at https://gath-org.github.io/gath/.
 
 ## Install
 
-Go 1.24 or newer.
+macOS and Linux:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/gath-org/gath/main/scripts/install.sh | sh
+```
+
+The installer checks for Git and Go 1.24 or newer, clones this repository, and asks you to confirm. It then builds `gath` and puts it on your PATH. Run `gath` to open the terminal on mainnet. If Git or Go is missing, or Go is older than 1.24, it prints how to install them and stops.
+
+From a checkout:
 
 ```bash
 git clone https://github.com/gath-org/gath.git
