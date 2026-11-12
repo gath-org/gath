@@ -283,9 +283,18 @@ func lessCoin(a, b Coin) bool {
 	return a.Outpoint.Index < b.Outpoint.Index
 }
 
-func (w *Wallet) write(path, passphrase string) error {
+// ValidatePassphrase reports whether a file passphrase meets the wallet rule.
+// The phrase that restores the wallet is separate, and this check does not apply to it.
+func ValidatePassphrase(passphrase string) error {
 	if len(passphrase) < 8 {
 		return errors.New("passphrase must be at least 8 characters")
+	}
+	return nil
+}
+
+func (w *Wallet) write(path, passphrase string) error {
+	if err := ValidatePassphrase(passphrase); err != nil {
+		return err
 	}
 	f, err := encrypt(w.network, w.seed, passphrase)
 	if err != nil {

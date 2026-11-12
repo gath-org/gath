@@ -10,7 +10,7 @@
   <img alt="SHA3-256 proof of work, a target block time of about 45 seconds, a supply cap of 20,999,999.727 Gath, and ML-DSA-44 signatures" src="docs/facts.svg" width="840">
 </p>
 
-Gath is a proof-of-work currency. This repository is the full node, the CPU miner, and the command-line wallet. The chain moves one asset, Gath. There is no issuer and no admin key.
+Gath is a proof-of-work currency. This repository is the full node, the CPU miner, the command-line wallet, and a terminal interface. The chain moves one asset, Gath. There is no issuer and no admin key.
 
 The mainnet parameters are in the binary. A public seed is reachable at `104.207.90.38:9733`. It started at genesis and may have few or no peers. There is no DNS name for it yet.
 
@@ -22,7 +22,15 @@ The website is at https://gath-org.github.io/gath/.
 
 ## Install
 
-Go 1.24 or newer.
+macOS and Linux:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/gath-org/gath/main/scripts/install.sh | sh
+```
+
+The installer checks for Git and Go 1.24 or newer, clones this repository, and asks you to confirm. It then builds `gath` and puts it on your PATH. Run `gath` to open the terminal on mainnet. If Git or Go is missing, or Go is older than 1.24, it prints how to install them and stops.
+
+From a checkout:
 
 ```bash
 git clone https://github.com/gath-org/gath.git
@@ -35,6 +43,24 @@ go build -o bin/gath ./cmd/gath
 ```bash
 go install github.com/gath-org/gath/cmd/gath@latest
 ```
+
+## Terminal
+
+`gath` with no arguments opens the terminal on mainnet. The dashboard, wallet, and miner are in that interface. It uses the same ports as `gath node`: peers on `0.0.0.0:9733`, and the API on `127.0.0.1:9734`. Chain data and the wallet file are kept in `~/.gath/mainnet`. Devnet uses `~/.gath/devnet`, peers on `127.0.0.1:19733`, and the API on `127.0.0.1:19734`.
+
+If a node is already listening on that API port, the interface attaches to it. It does not start a second node, and it does not stop a node it did not start.
+
+```bash
+bin/gath
+```
+
+Keys: `1` dashboard, `2` wallet, `3` miner, `4` network, `q` quit. The network screen switches between mainnet and devnet. To open on devnet:
+
+```bash
+bin/gath tui --network devnet
+```
+
+`gath node`, `gath miner`, and `gath wallet` are unchanged.
 
 ## Node
 

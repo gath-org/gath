@@ -15,6 +15,16 @@ import (
 // Solve searches for a nonce that satisfies the block's compact target.
 // threads is the number of CPU workers. On success the header nonce is set.
 func Solve(ctx context.Context, block *consensus.Block, threads int) error {
+	return solve(ctx, block, threads, nil)
+}
+
+// SolveWatch is Solve, and it adds one to hashes for every header it tries.
+// hashes may be nil.
+func SolveWatch(ctx context.Context, block *consensus.Block, threads int, hashes *atomic.Uint64) error {
+	return solve(ctx, block, threads, hashes)
+}
+
+func solve(ctx context.Context, block *consensus.Block, threads int, hashes *atomic.Uint64) error {
 	if block == nil {
 		return errors.New("nil block")
 	}
@@ -33,7 +43,7 @@ func Solve(ctx context.Context, block *consensus.Block, threads int) error {
 	errc := make(chan error, threads)
 	for i := 0; i < threads; i++ {
 		go func() {
-			errc <- search(ctx, block.Header, target, &counter, &found, &ok)
+			errc <- search(ctx, block.Header, target, &counter, &found, &ok, hashes)
 		}()
 	}
 	var first error
@@ -53,7 +63,7 @@ func Solve(ctx context.Context, block *consensus.Block, threads int) error {
 	return first
 }
 
-func search(ctx context.Context, header consensus.BlockHeader, target *big.Int, counter, found *atomic.Uint64, ok *atomic.Bool) error {
+func search(ctx context.Context, header consensus.BlockHeader, target *big.Int, counter, found *atomic.Uint64, ok *atomic.Bool, hashes *atomic.Uint64) error {
 	buf := header.Bytes()
 	if len(buf) != consensus.HeaderLen {
 		return errors.New("bad header length")
@@ -63,6 +73,9 @@ func search(ctx context.Context, header consensus.BlockHeader, target *big.Int, 
 			return nil
 		}
 		n := counter.Add(1) - 1
+		if hashes != nil {
+			hashes.Add(1)
+		}
 		if n&0xfff == 0 {
 			select {
 			case <-ctx.Done():
