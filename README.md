@@ -7,6 +7,8 @@ Gath is a proof-of-work currency. This repository is the full node, the CPU mine
 
 The mainnet parameters are in the binary. No public network is running on them.
 
+The website is at https://gath-org.github.io/gath/.
+
 ## Install
 
 Go 1.24 or newer.
