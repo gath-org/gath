@@ -3,7 +3,7 @@ module github.com/gath-org/gath
 go 1.24.0
 
 require (
-	github.com/btcsuite/btcd/btcutil v1.1.6
+	github.com/btcsuite/btcd/btcutil v1.2.0
 	github.com/charmbracelet/bubbles v0.21.0
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/cloudflare/circl v1.6.4
