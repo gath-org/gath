@@ -45,7 +45,7 @@ Relative ASERT still allows a bounded fast-mine. A block every second tightens t
 ## Known gaps
 
 - No security audit.
-- The bootnode and DNS seed lists exist and are empty. No public seed is published, so until one is added peers come from `--connect` and address gossip.
+- One public mainnet bootnode is published (`104.207.90.38:9733`). It started at genesis and may have few or no peers. There is no DNS seed name. `--connect` still adds peers, and address gossip is unchanged.
 - No headers-first initial download and no transaction orphan pool.
 - No replace-by-fee. The mempool is first-seen, capped, and not written to disk.
 - A deep side chain is validated before it is stored. Proof of work makes that expensive on mainnet. It is cheap on devnet.

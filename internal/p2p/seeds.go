@@ -12,10 +12,11 @@ import (
 const dnsSeedTimeout = 5 * time.Second
 
 // MainnetBootnodes are "host:port" peers a mainnet node dials on startup.
-// The list is empty until the first public node exists. Adding that node's
-// address here is enough for other nodes to find it. --connect still works
-// while the list is empty.
-var MainnetBootnodes []string
+// The first public seed started at genesis. It may have few or no peers.
+// --connect still adds peers alongside this list.
+var MainnetBootnodes = []string{
+	"104.207.90.38:9733",
+}
 
 // MainnetDNSSeeds are DNS names. A mainnet node resolves each name and dials
 // every A and AAAA record on the mainnet peer port. Empty until a seed name
