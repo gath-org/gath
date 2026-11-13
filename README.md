@@ -1,3 +1,5 @@
+gath is no longer maintained. the public seed node is offline. fork it if you want to run your own network.
+
 <p align="center">
   <picture>
     <source media="(prefers-reduced-motion: reduce)" srcset="docs/banner.png">
